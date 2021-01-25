@@ -162,7 +162,7 @@ class BayesianNetwork:
 
     def sorted_nodes(self):
         """
-        I guess this is a sort ig Kahn's algorithm, but it is not a complete rip-off of the pseudocode one wikipedia.
+        I guess this is a sort of Kahn's algorithm, but it is not a complete rip-off of the pseudocode one wikipedia.
         I use an algorithm that uses a dictionary for keeping track of how many incoming edges a node has, called in_degree.
 
         Returns: List of sorted variable names.
@@ -230,7 +230,7 @@ class InferenceByEnumeration:
         for i in range(StatesCount):
             e[X] = i
             Q[i] = self._enumerate_all(self.topo_order, e)
-        alpha = np.sum(Q)
+        alpha = np.sum(Q)  # normalization factor
         return 1/alpha * Q
 
     def _enumerate_all(self, vars, evidence):
@@ -309,10 +309,30 @@ def problem3c():
 
 
 def monty_hall():
-    # TODO: Implement the monty hall problem as described in Problem 4c)
-    pass
+    # The monty hall problem as described in Problem 4c)
+    prize = Variable('P', 3, [[1/3], [1/3], [1/3]])
+
+    guest = Variable('G', 3, [[1/3], [1/3], [1/3]])
+
+    host = Variable('H', 3, [[0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.0, 1.0, 0.5],
+                             [0.5, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.5],
+                             [0.5, 1.0, 0.0, 1.0, 0.5, 0.0, 0.0, 0.0, 0.0]], ['G', 'P'], [3, 3])
+
+    bn = BayesianNetwork()
+
+    bn.add_variable(prize)
+    bn.add_variable(guest)
+    bn.add_variable(host)
+
+    bn.add_edge(prize, host)
+    bn.add_edge(guest, host)
+
+    inference = InferenceByEnumeration(bn)
+    posterior = inference.query('P', {'G': 0, 'H': 2})
+
+    print(posterior)
 
 
 if __name__ == '__main__':
-    problem3c()
-    # monty_hall()
+    # problem3c()
+    monty_hall()
