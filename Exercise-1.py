@@ -51,13 +51,15 @@ class Variable:
                              f"{self.table.shape[0]} number of rows.")
 
         if self.table.shape[1] != np.prod(no_parent_states):
-            raise ValueError("Number of table columns does not match number of parent states combinations.")
+            raise ValueError(
+                "Number of table columns does not match number of parent states combinations.")
 
         if not np.allclose(self.table.sum(axis=0), 1):
             raise ValueError("All columns in table must sum to 1.")
 
         if len(parents) != len(no_parent_states):
-            raise ValueError("Number of parents must match number of length of list no_parent_states.")
+            raise ValueError(
+                "Number of parents must match number of length of list no_parent_states.")
 
     def __str__(self):
         """
@@ -70,13 +72,15 @@ class Variable:
         for (i, e) in enumerate(self.parents):
             s += '+----------+' + '----------+' * width + '\n'
             gi = grid[i].reshape(-1)
-            s += f'|{e:^10}|' + '|'.join([f'{e + "("+str(j)+")":^10}' for j in gi])
+            s += f'|{e:^10}|' + \
+                '|'.join([f'{e + "("+str(j)+")":^10}' for j in gi])
             s += '|\n'
 
         for i in range(self.no_states):
             s += '+----------+' + '----------+' * width + '\n'
             state_name = self.name + f'({i})'
-            s += f'|{state_name:^10}|' + '|'.join([f'{p:^10.4f}' for p in self.table[i]])
+            s += f'|{state_name:^10}|' + \
+                '|'.join([f'{p:^10.4f}' for p in self.table[i]])
             s += '|\n'
 
         s += '+----------+' + '----------+' * width + '\n'
@@ -95,21 +99,27 @@ class Variable:
             float with value between 0 and 1
         """
         if not isinstance(state, int):
-            raise TypeError(f"Expected state to be of type int; got type {type(state)}.")
+            raise TypeError(
+                f"Expected state to be of type int; got type {type(state)}.")
         if not isinstance(parentstates, dict):
-            raise TypeError(f"Expected parentstates to be of type dict; got type {type(parentstates)}.")
+            raise TypeError(
+                f"Expected parentstates to be of type dict; got type {type(parentstates)}.")
         if state >= self.no_states:
-            raise ValueError(f"Recieved state={state}; this variable's last state is {self.no_states - 1}.")
+            raise ValueError(
+                f"Recieved state={state}; this variable's last state is {self.no_states - 1}.")
         if state < 0:
-            raise ValueError(f"Recieved state={state}; state cannot be negative.")
+            raise ValueError(
+                f"Recieved state={state}; state cannot be negative.")
 
         table_index = 0
         for variable in self.parents:
             if variable not in parentstates:
-                raise ValueError(f"Variable {variable.name} does not have a defined value in parentstates.")
+                raise ValueError(
+                    f"Variable {variable.name} does not have a defined value in parentstates.")
 
             var_index = self.parents.index(variable)
-            table_index += parentstates[variable] * np.prod(self.no_parent_states[:var_index])
+            table_index += parentstates[variable] * \
+                np.prod(self.no_parent_states[:var_index])
 
         return self.table[state, int(table_index)]
 
@@ -123,8 +133,10 @@ class BayesianNetwork:
     Edges are stored in a dictionary. A node's children can be accessed by
     self.edges[variable]. Both the key and value in this dictionary is a Variable.
     """
+
     def __init__(self):
-        self.edges = defaultdict(lambda: [])  # All nodes start out with 0 edges
+        # All nodes start out with 0 edges
+        self.edges = defaultdict(lambda: [])
         self.variables = {}                   # Dictionary of "name":TabularDistribution
 
     def add_variable(self, variable):
@@ -141,17 +153,67 @@ class BayesianNetwork:
         been added to the network before calling this method.
         """
         if from_variable not in self.variables.values():
-            raise ValueError("Parent variable is not added to list of variables.")
+            raise ValueError(
+                "Parent variable is not added to list of variables.")
         if to_variable not in self.variables.values():
-            raise ValueError("Child variable is not added to list of variables.")
+            raise ValueError(
+                "Child variable is not added to list of variables.")
         self.edges[from_variable].append(to_variable)
 
     def sorted_nodes(self):
         """
-        TODO: Implement Kahn's algorithm (or some equivalent algorithm) for putting
-              variables in lexicographical topological order.
+        I guess this is a sort ig Kahn's algorithm, but it is not a complete rip-off of the pseudocode one wikipedia.
+        I use an algorithm that uses a dictionary for keeping track of how many incoming edges a node has, called in_degree.
+
         Returns: List of sorted variable names.
         """
+
+        edgesCopy = self.edges.copy()
+        numberOfVariables = len(self.variables)
+
+        # Create a vector to store indegrees of all
+        # vertices. Initialize all indegrees as 0.
+        in_degree = {d: 0 for d in self.variables.values()}
+
+        for i in edgesCopy:
+            for j in edgesCopy[i]:
+                in_degree[j] += 1
+
+        # Create a queue and enqueue all vertices with
+        # indegree 0
+        queue = []
+        for i in in_degree:
+            if in_degree[i] == 0:
+                queue.append(i)
+
+        # Initialize count of visited vertices
+        cnt = 0
+
+        # Create a list to store the result
+        top_order = []
+
+        while queue:
+
+            u = queue.pop(0)
+            top_order.append(u)
+
+            # Iterate through all neighbouring nodes
+            # of dequeued node u and decrease their in-degree by 1
+
+            for i in edgesCopy[u]:
+                in_degree[i] -= 1
+                # If in-degree becomes zero, add it to queue
+                if in_degree[i] == 0:
+                    queue.append(i)
+
+            cnt += 1
+
+        # Check if there was a cycle
+        if cnt != numberOfVariables:
+            raise Exception("There is a cycle in the graph! :(")
+        else:
+            # Return the sorted graph
+            return top_order
 
 
 class InferenceByEnumeration:
@@ -160,16 +222,38 @@ class InferenceByEnumeration:
         self.topo_order = bayesian_network.sorted_nodes()
 
     def _enumeration_ask(self, X, evidence):
-        # TODO: Implement Enumeration-Ask algortihm as described in Problem 4 b)
 
-        # Reminder:
-        # When mutable types (lists, dictionaries, etc.) are passed to functions in python
-        # it is actually passing a pointer to that variable. This means that if you want
-        # to make sure that a function doesn't change the variable, you should pass a copy.
-        # You can make a copy of a variable by calling variable.copy()
+        StatesCount = self.bayesian_network.variables[X].no_states
+        e = evidence.copy()
+        Q = np.zeros(StatesCount)
+
+        for i in range(StatesCount):
+            e[X] = i
+            Q[i] = self._enumerate_all(self.topo_order, e)
+        alpha = np.sum(Q)
+        return 1/alpha * Q
 
     def _enumerate_all(self, vars, evidence):
-        # TODO: Implement Enumerate-All algortihm as described in Problem 4 b)
+        # Return 1 if there is no variables to evaluate
+        if not vars:
+            return 1
+        varsCopy = vars.copy()
+        y = varsCopy.pop(0)
+
+        e = evidence.copy()
+
+        if y.name in e.keys():
+            state = e[y.name]
+            return y.probability(state, e) * self._enumerate_all(varsCopy, e)
+
+        val = 0
+        states = y.no_states
+        for i in range(states):
+            e[y.name] = i
+            element = y.probability(i, e) * \
+                self._enumerate_all(varsCopy, e)
+            val = val + element
+        return val
 
     def query(self, var, evidence={}):
         """
@@ -195,17 +279,17 @@ def problem3c():
                   parents=['B'],
                   no_parent_states=[2])
 
-    print(f"Probability distribution, P({d1.name})")
-    print(d1)
-
-    print(f"Probability distribution, P({d2.name} | {d1.name})")
-    print(d2)
-
-    print(f"Probability distribution, P({d3.name} | {d2.name})")
-    print(d3)
-
-    print(f"Probability distribution, P({d4.name} | {d2.name})")
-    print(d4)
+    #print(f"Probability distribution, P({d1.name})")
+    # print(d1)
+#
+    #print(f"Probability distribution, P({d2.name} | {d1.name})")
+    # print(d2)
+#
+    #print(f"Probability distribution, P({d3.name} | {d2.name})")
+    # print(d3)
+#
+    #print(f"Probability distribution, P({d4.name} | {d2.name})")
+    # print(d4)
 
     bn = BayesianNetwork()
 
