@@ -187,29 +187,28 @@ class BayesianNetwork:
                 queue.append(i)
 
         # Initialize count of visited vertices
-        cnt = 0
+        visited = 0
 
         # Create a list to store the result
         top_order = []
 
         while queue:
 
-            u = queue.pop(0)
-            top_order.append(u)
+            n = queue.pop(0)
+            top_order.append(n)
 
             # Iterate through all neighbouring nodes
             # of dequeued node u and decrease their in-degree by 1
-
-            for i in edgesCopy[u]:
+            for i in edgesCopy[n]:
                 in_degree[i] -= 1
                 # If in-degree becomes zero, add it to queue
                 if in_degree[i] == 0:
                     queue.append(i)
 
-            cnt += 1
+            visited += 1
 
         # Check if there was a cycle
-        if cnt != numberOfVariables:
+        if visited != numberOfVariables:
             raise Exception("There is a cycle in the graph! :(")
         else:
             # Return the sorted graph
@@ -217,27 +216,39 @@ class BayesianNetwork:
 
 
 class InferenceByEnumeration:
+    # This class implements the enumeration-ask algorithm for inference in a Bayesian Network
+
     def __init__(self, bayesian_network):
         self.bayesian_network = bayesian_network
+        # Sort the nodes using a variant of Kahn's algorithm
         self.topo_order = bayesian_network.sorted_nodes()
 
+    # The implementation is heavily based in the pseudocode in Russel & Norvig
     def _enumeration_ask(self, X, evidence):
 
         StatesCount = self.bayesian_network.variables[X].no_states
         e = evidence.copy()
-        Q = np.zeros(StatesCount)
+
+        # initialize a vector for holding the distribution over X
+        Q = [0] * StatesCount
 
         for i in range(StatesCount):
             e[X] = i
             Q[i] = self._enumerate_all(self.topo_order, e)
-        alpha = np.sum(Q)  # normalization factor
-        return 1/alpha * Q
+        alpha = 1/sum(Q)  # normalization factor
 
+        # Use a numpy array to enable easy normalization. Multiplying native lists in Python does not work the same way as what we want here.
+        return alpha * np.array(Q)
+
+    # Called by _enumeration_ask
+    # Uses recursive depth-first approach to calcuate the probabilities
     def _enumerate_all(self, vars, evidence):
+
         # Return 1 if there is no variables to evaluate
         if not vars:
             return 1
         varsCopy = vars.copy()
+        # y is the first element of the variables (which are top-sorted). The pop() method also removes the value from the varsCopy list
         y = varsCopy.pop(0)
 
         e = evidence.copy()
@@ -248,6 +259,7 @@ class InferenceByEnumeration:
 
         val = 0
         states = y.no_states
+        # Sum over the states, using the extended evidence set including y.name
         for i in range(states):
             e[y.name] = i
             element = y.probability(i, e) * \
@@ -302,7 +314,7 @@ def problem3c():
     bn.add_edge(d2, d4)
 
     inference = InferenceByEnumeration(bn)
-    posterior = inference.query('C', {'D': 1})
+    posterior = inference.query('A', {'C': 1, 'D': 0})
 
     print(f"Probability distribution, P({d3.name} | !{d4.name})")
     print(posterior)
@@ -310,27 +322,42 @@ def problem3c():
 
 def monty_hall():
     # The monty hall problem as described in Problem 4c)
+
+    # Probability distribution for Prize
     prize = Variable('P', 3, [[1/3], [1/3], [1/3]])
 
+    # Probability distribution for ChosenByGuest
     guest = Variable('G', 3, [[1/3], [1/3], [1/3]])
 
+    # Probability distribution for OpenedByHost given Prize and ChosenByGuest
     host = Variable('H', 3, [[0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.0, 1.0, 0.5],
                              [0.5, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.5],
                              [0.5, 1.0, 0.0, 1.0, 0.5, 0.0, 0.0, 0.0, 0.0]], ['G', 'P'], [3, 3])
 
+    print(f"Probability distribution, P({prize.name}) \n{prize}")
+    print(f"Probability distribution, P({guest.name}) \n{guest}")
+    print(
+        f"Probability distribution, P({host.name} | {guest.name}, {prize.name}) \n{host}")
+
+    # Create the network
     bn = BayesianNetwork()
 
+    # Add variables
     bn.add_variable(prize)
     bn.add_variable(guest)
     bn.add_variable(host)
 
+    # Add edges
     bn.add_edge(prize, host)
     bn.add_edge(guest, host)
 
+    # Execute inference by enumeration
     inference = InferenceByEnumeration(bn)
     posterior = inference.query('P', {'G': 0, 'H': 2})
 
-    print(posterior)
+    # Results for Monty Hall
+    print(
+        f"Probability distribution, P({prize.name} | {guest.name}=0, {host.name}=2) \n{posterior}")
 
 
 if __name__ == '__main__':
