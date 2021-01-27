@@ -162,9 +162,9 @@ class BayesianNetwork:
 
     def sorted_nodes(self):
         """
-        I guess this is a sort of Kahn's algorithm, but it is not a complete rip-off of the pseudocode one wikipedia.
+        I guess this is a sort of Kahn's algorithm, but it is not identical to the pseudocode on wikipedia.
         I use an algorithm that uses a dictionary for keeping track of how many incoming edges a node has, called in_degree.
-
+        The implementation is inspired by this article: https://www.geeksforgeeks.org/topological-sorting-indegree-based-solution/
         Returns: List of sorted variable names.
         """
 
