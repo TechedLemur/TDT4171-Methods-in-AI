@@ -13,7 +13,7 @@ class Variable:
         no_parent_states (list of ints): Number of states that each parent variable can take.
 
         The table is a 2d array of size #events * #number_of_conditions.
-        #number_of_conditions is the number of possible conditions (prod(no_parent_states))
+        # number_of_conditions is the number of possible conditions (prod(no_parent_states))
         If the distribution is unconditional #number_of_conditions is 1.
         Each column represents a conditional distribution and sum to 1.
 
@@ -162,57 +162,49 @@ class BayesianNetwork:
 
     def sorted_nodes(self):
         """
-        I guess this is a sort of Kahn's algorithm, but it is not identical to the pseudocode on wikipedia.
-        I use an algorithm that uses a dictionary for keeping track of how many incoming edges a node has, called in_degree.
-        The implementation is inspired by this article: https://www.geeksforgeeks.org/topological-sorting-indegree-based-solution/
-        Returns: List of sorted variable names.
+        An implementation of Kahn's algorithm for topological sorting of nodes in a DAG.
+        I also use a dictionary for keeping track of how many incoming edges a node has, called inbound_edges.
+        Decreasing the number of inbound edges for a node is essentially the same as removing an edge for our usecase. 
+        We don't actaully need to care about exactly which edge we are removing, keeping track of the count is enough.
+
+        Returns: List of sorted variables.
         """
 
-        edgesCopy = self.edges.copy()
-        numberOfVariables = len(self.variables)
+        L = []  # Will hold the final sorted list of nodes
+        S = []  # Contains the set of nodes without inbound edges
 
-        # Create a vector to store indegrees of all
-        # vertices. Initialize all indegrees as 0.
-        in_degree = {d: 0 for d in self.variables.values()}
+        edgesCopy = self.edges.copy()
+
+        # Create a dictionary to keep track of incoming edges for the nodes. Key: a Variable object, Value: the number of incoming edges for the given node/variable.
+        inbound_edges = {node: 0 for node in self.variables.values()}
 
         for i in edgesCopy:
-            for j in edgesCopy[i]:
-                in_degree[j] += 1
+            for node in edgesCopy[i]:
+                inbound_edges[node] += 1
 
-        # Create a queue and enqueue all vertices with
-        # indegree 0
-        queue = []
-        for i in in_degree:
-            if in_degree[i] == 0:
-                queue.append(i)
+        # Populate S with all nodes that has no incoming edges
+        for node, edges in inbound_edges.items():
+            if edges == 0:
+                S.append(node)
 
-        # Initialize count of visited vertices
-        visited = 0
+        while S:
+            # Remove first element from S, and insert it to L
+            n = S.pop(0)
+            L.append(n)
 
-        # Create a list to store the result
-        top_order = []
+            # Iterate through all neighbouring nodes of n
+            for m in edgesCopy[n]:
+                inbound_edges[m] -= 1
+                # If inbound edges becomes zero, add m to S
+                if inbound_edges[m] == 0:
+                    S.append(m)
 
-        while queue:
-
-            n = queue.pop(0)
-            top_order.append(n)
-
-            # Iterate through all neighbouring nodes
-            # of dequeued node u and decrease their in-degree by 1
-            for i in edgesCopy[n]:
-                in_degree[i] -= 1
-                # If in-degree becomes zero, add it to queue
-                if in_degree[i] == 0:
-                    queue.append(i)
-
-            visited += 1
-
-        # Check if there was a cycle
-        if visited != numberOfVariables:
+        # If there are any nodes that still has an inbound edge, we have a cycle in the graph
+        if sum(edges for edges in inbound_edges.values()):
             raise Exception("There is a cycle in the graph! :(")
         else:
-            # Return the sorted graph
-            return top_order
+            # Return the sorted nodes
+            return L
 
 
 class InferenceByEnumeration:
@@ -291,16 +283,16 @@ def problem3c():
                   parents=['B'],
                   no_parent_states=[2])
 
-    #print(f"Probability distribution, P({d1.name})")
+    # print(f"Probability distribution, P({d1.name})")
     # print(d1)
 #
-    #print(f"Probability distribution, P({d2.name} | {d1.name})")
+    # print(f"Probability distribution, P({d2.name} | {d1.name})")
     # print(d2)
 #
-    #print(f"Probability distribution, P({d3.name} | {d2.name})")
+    # print(f"Probability distribution, P({d3.name} | {d2.name})")
     # print(d3)
 #
-    #print(f"Probability distribution, P({d4.name} | {d2.name})")
+    # print(f"Probability distribution, P({d4.name} | {d2.name})")
     # print(d4)
 
     bn = BayesianNetwork()
