@@ -308,7 +308,7 @@ def problem3c():
     inference = InferenceByEnumeration(bn)
     posterior = inference.query('A', {'C': 1, 'D': 0})
 
-    print(f"Probability distribution, P({d3.name} | !{d4.name})")
+    # print(f"Probability distribution, P({d3.name} | !{d4.name})")
     print(posterior)
 
 
@@ -324,7 +324,9 @@ def monty_hall():
     # Probability distribution for OpenedByHost given Prize and ChosenByGuest
     host = Variable('H', 3, [[0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.0, 1.0, 0.5],
                              [0.5, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.5],
-                             [0.5, 1.0, 0.0, 1.0, 0.5, 0.0, 0.0, 0.0, 0.0]], ['G', 'P'], [3, 3])
+                             [0.5, 1.0, 0.0, 1.0, 0.5, 0.0, 0.0, 0.0, 0.0]],
+                    parents=['G', 'P'],
+                    no_parent_states=[3, 3])
 
     print(f"Probability distribution, P({prize.name}) \n{prize}")
     print(f"Probability distribution, P({guest.name}) \n{guest}")
