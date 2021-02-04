@@ -26,7 +26,7 @@ def forward(t):
 
 
 def backward(k, t):
-    if k == t:
+    if k == t + 1:
         return np.array([[1],
                          [1]])
     return T.dot(Evidence[k-1]).dot(backward(k+1, t))
