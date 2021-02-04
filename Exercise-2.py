@@ -26,10 +26,10 @@ def forward(t):
 
 
 def backward(k, t):
-    if k == t+1:
+    if k == t:
         return np.array([[1],
                          [1]])
-    return T.transpose().dot(Evidence[k-1]).dot(backward(k+1, t))
+    return T.dot(Evidence[k-1]).dot(backward(k+1, t))
 
 
 # Prediction
@@ -43,7 +43,6 @@ def Prediction(t, k):
 # Smoothing
 def Smoothing(k, t):
     x = forward(k)*backward(k+1, t)
-    print(x)
     return x / np.sum(x)
 
 
