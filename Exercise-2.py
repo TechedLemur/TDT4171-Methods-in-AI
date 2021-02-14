@@ -4,8 +4,14 @@ import matplotlib.pyplot as plt
 # Transition Matrix
 T = np.array([[0.8, 0.2],
               [0.3, 0.7]])
+T2 = np.array([[0.7, 0.3],
+               [0.3, 0.7]])
 
 
+O = np.array([[0.9, 0.0], [0.0, 0.2]])
+O1 = np.array([[0.1, 0.0], [0.0, 0.8]])
+
+e = [O, O, O1, O, O]
 O_1 = O_2 = O_4 = O_6 = np.array([[0.75, 0.0],
                                   [0.0, 0.2]])
 
@@ -22,6 +28,15 @@ def forward(t):
         return initial_probabilities
 
     x = Evidence[t-1].dot(T.transpose()).dot(forward(t-1))
+    return x / np.sum(x)
+
+
+def forward2(t):
+
+    if t == 0:
+        return initial_probabilities
+
+    x = O.dot(T2.transpose()).dot(forward(t-1))
     return x / np.sum(x)
 
 
@@ -44,6 +59,26 @@ def Prediction(t, k):
 def Smoothing(k, t):
     x = forward(k)*backward(k+1, t)
     return x / np.sum(x)
+
+
+def Viterbi(t):
+
+    path = []
+    m = np.array([[[0.0], [0.0]] for i in range(t)])
+    m[0] = forward2(1)
+
+    path.append(np.argmax(m[0]))
+    for i in range(1, t):
+
+        k = np.argmax(m[i-1])
+        v = m[i-1][k]
+
+        x = e[i].dot(T2)*v
+
+        y = np.array([[x[0][k]], [x[1][k]]])
+        m[i] = y
+        path.append(np.argmax(y))
+    return m, path
 
 
 def taskB():
@@ -91,7 +126,6 @@ def taskD():
     y2 = []
     for k in range(6):
         s = Smoothing(k, 6)
-        print(s)
         x.append(k)
         y.append(s[0][0])
         y2.append(s[1][0])
@@ -117,6 +151,7 @@ def taskD():
     plt.show()
 
 
-taskB()
-taskC()
-taskD()
+# taskB()
+# taskC()
+# taskD()
+print(Viterbi(5))
