@@ -4,14 +4,8 @@ import matplotlib.pyplot as plt
 # Transition Matrix
 T = np.array([[0.8, 0.2],
               [0.3, 0.7]])
-T2 = np.array([[0.7, 0.3],
-               [0.3, 0.7]])
 
 
-O = np.array([[0.9, 0.0], [0.0, 0.2]])
-O1 = np.array([[0.1, 0.0], [0.0, 0.8]])
-
-e = [O, O, O1, O, O]
 O_1 = O_2 = O_4 = O_6 = np.array([[0.75, 0.0],
                                   [0.0, 0.2]])
 
@@ -28,15 +22,6 @@ def forward(t):
         return initial_probabilities
 
     x = Evidence[t-1].dot(T.transpose()).dot(forward(t-1))
-    return x / np.sum(x)
-
-
-def forward2(t):
-
-    if t == 0:
-        return initial_probabilities
-
-    x = O.dot(T2.transpose()).dot(forward(t-1))
     return x / np.sum(x)
 
 
@@ -63,21 +48,23 @@ def Smoothing(k, t):
 
 def Viterbi(t):
 
-    path = []
+    path = []  # list for storing the path to the most likely sequence
+    # Initialize a table for storing the "m" messages
     m = np.array([[[0.0], [0.0]] for i in range(t)])
-    m[0] = forward2(1)
+    m[0] = forward(1)  # The first probabilities are is just P(X_1 | e_1)
 
-    path.append(np.argmax(m[0]))
+    path.append(np.argmax(m[0]))  # Save the state for the maximum probability
     for i in range(1, t):
 
-        k = np.argmax(m[i-1])
+        k = np.argmax(m[i-1])  # Find max argument of predeceding state
         v = m[i-1][k]
 
-        x = e[i].dot(T2)*v
+        x = Evidence[i].dot(T.transpose())*v  # Calculate probabilities
 
+        # Select the correct values from the calculation
         y = np.array([[x[0][k]], [x[1][k]]])
-        m[i] = y
-        path.append(np.argmax(y))
+        m[i] = y  # Add probabilities to m
+        path.append(np.argmax(y))  # Add state to the path list
     return m, path
 
 
@@ -86,15 +73,31 @@ def taskB():
     x = []
     y = []
     y2 = []
+
     for i in range(1, 7):
         x.append(i)
         y.append(forward(i)[0][0])
         y2.append(forward(i)[1][0])
-    ax.plot(x, y, label='P(xt | e1:t)')
-    ax.plot(x, y2, label='P(¬xt | e1:t)')
-    ax.set_xlabel('t')  # Add an x-label to the axes.
-    ax.set_ylabel('Probability')  # Add a y-label to the axes.
-    ax.set_title("Task B, Filtering")  # Add a title to the axes.
+    ax.plot(x, y, '-o', label='P(xt | e1:t)')
+    ax.plot(x, y2, '-o', label='P(¬xt | e1:t)')
+
+    for a, b in zip(x, y):
+        ax.annotate(s="{:.4f}".format(b),
+                    xy=(a, b),
+                    textcoords='offset points',
+                    xytext=(0, 10),
+                    ha=('center'))
+
+    for a, b in zip(x, y2):
+        ax.annotate(s="{:.4f}".format(b),
+                    xy=(a, b),
+                    textcoords='offset points',
+                    xytext=(0, 10),
+                    ha=('center'))
+
+    ax.set_xlabel('t')
+    ax.set_ylabel('Probability')
+    ax.set_title("Task B, Filtering")
     ax.legend()
     plt.show()
 
@@ -112,9 +115,9 @@ def taskC():
     ax.plot(x, y, label='P(xt | e1:6)')
     ax.plot(x, y2, label='P(¬xt | e1:6)')
 
-    ax.set_xlabel('t')  # Add an x-label to the axes.
-    ax.set_ylabel('Probability')  # Add a y-label to the axes.
-    ax.set_title("Task C, Prediction")  # Add a title to the axes.
+    ax.set_xlabel('t')
+    ax.set_ylabel('Probability')
+    ax.set_title("Task C, Prediction")
     ax.legend()
     plt.show()
 
@@ -144,14 +147,31 @@ def taskD():
                     textcoords='offset points',
                     xytext=(0, 10),
                     ha=('center'))
-    ax.set_xlabel('t')  # Add an x-label to the axes.
-    ax.set_ylabel('Probability')  # Add a y-label to the axes.
-    ax.set_title("Task D, Smoothing")  # Add a title to the axes.
+    ax.set_xlabel('t')
+    ax.set_ylabel('Probability')
+    ax.set_title("Task D, Smoothing")
     ax.legend()
     plt.show()
 
 
-# taskB()
-# taskC()
-# taskD()
-print(Viterbi(5))
+def taskE():
+    probs, path = Viterbi(6)
+    print("Probabilities:")
+    print("-------------------------------------------------------")
+    x = "|"
+    y = "|"
+    for m in probs:
+        x = x + str(round(m[0][0], 6)).ljust(8) + "|"
+        y = y + str(round(m[1][0], 6)).ljust(8) + "|"
+
+    print(x)
+    print(y)
+    print("-------------------------------------------------------")
+
+    print(f"Most Likely Path:\n{path}")
+
+
+taskB()
+taskC()
+taskD()
+taskE()
