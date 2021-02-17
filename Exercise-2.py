@@ -57,7 +57,9 @@ def Smoothing(k, t):
 def Viterbi(t):
 
     # list for storing the path to the most likely sequence
-    path = [0] * (t)
+    path0 = [0] * (t)
+    path1 = path0.copy()
+
     # Initialize a table for storing the "m" messages
     m = np.array([[0.0, 0.0] for i in range(t)])
     s = [[0, 0]]  # List for keeping track of best predecessors
@@ -77,12 +79,14 @@ def Viterbi(t):
         y = [x[0][j], x[1][k]]
         m[i] = y  # Add probabilities to m
 
-    path[-1] = (np.argmax(m[-1]))
+    path0[-1] = 0
+    path1[-1] = 1
     # Traverse the state list backwards, and fill in the values in the path list.
     for i in range(len(s)-1, 1, -1):
-        path[i-1] = s[i][path[i]]
+        path0[i-1] = s[i][path0[i]]
+        path1[i-1] = s[i][path1[i]]
 
-    return m, s, path
+    return m, path0, path1
 
 
 def taskB():
@@ -183,7 +187,7 @@ def taskD():
 def taskE():
     print("Viterbi:")
     for i in range(1, 7):
-        probs, states, path = Viterbi(i)
+        probs, path0, path1 = Viterbi(i)
 
         # Make a nice display of the results in the console
         print(f"t = {i} \nProbabilities:")
@@ -198,7 +202,8 @@ def taskE():
         print(y)
         print("-"+"---------"*i)
 
-        print(f"Most Likely Path: {path}    States: {states}\n")
+        print(
+            f"Most Likely Paths: \nX_t = True: {path0}    X_t = False: {path1}\n")
 
 
 # The first 3 tasks will create a Matplotlib plot each. To see the next one and continue the program, close the current plot.
