@@ -56,24 +56,33 @@ def Smoothing(k, t):
 
 def Viterbi(t):
 
-    path = []  # list for storing the path to the most likely sequence
+    # list for storing the path to the most likely sequence
+    path = [0] * (t)
     # Initialize a table for storing the "m" messages
-    m = np.array([[[0.0], [0.0]] for i in range(t)])
-    m[0] = forward(1)  # The first probabilities are just P(X_1 | e_1)
+    m = np.array([[0.0, 0.0] for i in range(t)])
+    s = [[0, 0]]  # List for keeping track of best predecessors
 
-    path.append(np.argmax(m[0]))  # Save the state for the maximum probability
+    # The first probabilities are just P(X_1 | e_1)
+    m[0] = forward(1).transpose()
+
     for i in range(1, t):
 
-        k = np.argmax(m[i-1])  # Find maximizing argument of predeceding state
-        v = m[i-1][k]  # Max value
+        x = m[i-1]*(Evidence[i].dot(T.transpose()))  # Calculate probabilities
 
-        x = Evidence[i].dot(T.transpose())*v  # Calculate probabilities
+        j, k = np.argmax(x[0]), np.argmax(x[1])  # Find maximizing arguments
+
+        s.append([j, k])  # Save best predecessors
 
         # Select the correct values from the calculation
-        y = np.array([[x[0][k]], [x[1][k]]])
+        y = [x[0][j], x[1][k]]
         m[i] = y  # Add probabilities to m
-        path.append(np.argmax(y))  # Add state to the path list
-    return m, path
+
+    path[-1] = (np.argmax(m[-1]))
+    # Traverse the state list backwards, and fill in the values in the path list.
+    for i in range(len(s)-1, 1, -1):
+        path[i-1] = s[i][path[i]]
+
+    return m, s, path
 
 
 def taskB():
@@ -174,7 +183,7 @@ def taskD():
 def taskE():
     print("Viterbi:")
     for i in range(1, 7):
-        probs, path = Viterbi(i)
+        probs, states, path = Viterbi(i)
 
         # Make a nice display of the results in the console
         print(f"t = {i} \nProbabilities:")
@@ -182,14 +191,14 @@ def taskE():
         x = "|"
         y = "|"
         for m in probs:
-            x = x + str(round(m[0][0], 6)).ljust(8) + "|"
-            y = y + str(round(m[1][0], 6)).ljust(8) + "|"
+            x = x + str(round(m[0], 6)).ljust(8) + "|"
+            y = y + str(round(m[1], 6)).ljust(8) + "|"
 
         print(x)
         print(y)
         print("-"+"---------"*i)
 
-        print(f"Most Likely Path:\n{path}\n")
+        print(f"Most Likely Path: {path}    States: {states}\n")
 
 
 # The first 3 tasks will create a Matplotlib plot each. To see the next one and continue the program, close the current plot.
@@ -197,3 +206,6 @@ taskB()
 taskC()
 taskD()
 taskE()
+
+
+# print(np.array([[1, 0]]) * T)
