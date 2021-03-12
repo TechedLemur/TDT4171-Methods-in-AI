@@ -10,9 +10,9 @@ def B(q):
     return -(q*math.log(q, 2)+(1-q)*math.log(1-q, 2))
 
 
-def Remainder(A):
+def Remainder(A, p, n):
     r = 0
-    grouped = data.groupby("WillWait")[
+    grouped = data.groupby(GOAL_ATTRIBUTE)[
         A].value_counts().unstack(fill_value=0).stack()
 
     for k in data[A].unique():
@@ -22,8 +22,10 @@ def Remainder(A):
     return r
 
 
-def Gain(A):
-    return g - Remainder(A)
+def Importance(A, exs):
+    p = exs[GOAL_ATTRIBUTE].value_counts()[1]
+    n = exs[GOAL_ATTRIBUTE].value_counts()[0]
+    return B(p/(p+n)) - Remainder(A, p, n)
 
 
 class Node:
@@ -49,36 +51,24 @@ columns = []
 # data = pd.read_csv("./train.csv", usecols=columns)
 data = pd.read_csv("./book.csv")
 
+GOAL_ATTRIBUTE = "WillWait"
+
 # p = data["Survived"].value_counts()[1]
-p = data["WillWait"].value_counts()[1]
+# p = data["WillWait"].value_counts()[1]
 # n = data["Survived"].value_counts()[0]
-n = data["WillWait"].value_counts()[0]
+# n = data["WillWait"].value_counts()[0]
 
-g = B(p/(p+n))
+# g = B(p/(p+n))
 
-# Remainder("Patrons")
-count = data.groupby("WillWait")[
-    "Patrons"].value_counts().unstack(fill_value=0).stack()
-# for c in count.items():
-#   print(c)
-a = "Patrons"
-vals = data.Patrons.unique()
+# count = data.groupby("WillWait")[
+#    "Patrons"].value_counts().unstack(fill_value=0).stack()
+# a = "Patrons"
+# vals = data.Patrons.unique()
 
 
 def test(b):
-
     print(data.groupby("WillWait")
           [b].value_counts().unstack(fill_value=0).stack())
 
 
-# for v in vals:
-# test(a)
-#    print(v)
-#    print(count[(0, v)], "false")
-#    print(count[(1, v)], "true")
-# print(count[[0][0]])
-# print(data)
-# Remainder("Sex")
-# print(g)
-
-print(Gain("Patrons"))
+print(Importance("Patrons", data))
