@@ -1,6 +1,9 @@
 import pandas as pd
 import numpy as np
 import math
+from graphviz import Digraph
+import os
+os.environ["PATH"] += os.pathsep + 'C:/Program Files/Graphviz/bin'
 # class DecitionTree(self):
 
 
@@ -29,10 +32,36 @@ def Importance(A, exs):
 
 
 class Node:
-    def __init__(self, parent):
+    def __init__(self, value):
 
-        self.parent = parent
+        self.children = []
+        self.value = value
 
+    def addChild(self, node, state):
+        self.children.append({state: node})
+
+    def __str__(self):
+        return f"Value: {self.value}, Children: {self.children}"
+
+
+def treeTest():
+    n1 = Node("Patrons")
+    n2 = Node(0)
+    n1.addChild(n2, "some")
+    print(n1.children[0])
+
+
+def viztest():
+    dot = Digraph(comment='The Round Table')
+    dot.node('A', 'King Arthur')
+    dot.node('B', 'Sir Bedevere the Wise')
+    dot.node('L', 0)
+    dot.edges(['AB', 'AL'])
+    dot.edge('B', 'L', constraint='false')
+    dot.render('test-output/round-table.gv', view=True)
+
+
+viztest()
 
 columns = []
 # columns.append("Survived")
@@ -71,4 +100,9 @@ def test(b):
           [b].value_counts().unstack(fill_value=0).stack())
 
 
-print(Importance("Patrons", data))
+#print(Importance("Patrons", data))
+
+
+def DTL(examples, attributes, parent_examples):
+    if not examples:
+        return
