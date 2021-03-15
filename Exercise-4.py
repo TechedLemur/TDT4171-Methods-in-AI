@@ -9,54 +9,82 @@ os.environ["PATH"] += os.pathsep + 'C:/Program Files/Graphviz/bin'
 
 
 def B(q):
+    # print(q)
     if (q in [0, 1]):
         return 0
     return -(q*math.log(q, 2)+(1-q)*math.log(1-q, 2))
 
 
-def Remainder(A, p, n, exs):
+def Remainder(A, p, n, exs, c=None):
     r = 0
-    grouped = exs.groupby(GOAL_ATTRIBUTE)[
-        A].value_counts().unstack(fill_value=0).stack()
 
-    for k in exs[A].unique():
-        p_k = grouped[(1, k)]
-        n_k = grouped[(0, k)]
-        r += (p_k + n_k)/(p + n) * B(p_k / (p_k + n_k))
-    return r
+    if A in continuous:
+        left = exs[exs[A] <= c]
+        p_k = left[GOAL_ATTRIBUTE].value_counts().reindex(
+            data[GOAL_ATTRIBUTE].unique(), fill_value=0)[1]
+
+        n_k = left[GOAL_ATTRIBUTE].value_counts().reindex(
+            data[GOAL_ATTRIBUTE].unique(), fill_value=0)[0]
+
+        if (p_k + n_k) > 0:
+            r += (p_k + n_k)/(p + n) * B(p_k / (p_k + n_k))
+        right = exs[exs[A] > c]
+        p_k = right[GOAL_ATTRIBUTE].value_counts(
+        ).reindex(data[GOAL_ATTRIBUTE].unique(), fill_value=0)[1]
+        n_k = right[GOAL_ATTRIBUTE].value_counts().reindex(
+            data[GOAL_ATTRIBUTE].unique(), fill_value=0)[0]
+
+        if (p_k + n_k) > 0:
+            r += (p_k + n_k)/(p + n) * B(p_k / (p_k + n_k))
+        # print(r)
+        return r
+    else:
+        grouped = exs.groupby(GOAL_ATTRIBUTE)[
+            A].value_counts().unstack(fill_value=0).stack()
+
+        for k in exs[A].unique():
+            p_k = grouped[(1, k)]
+            n_k = grouped[(0, k)]
+            if (p_k + n_k) > 0:
+                r += (p_k + n_k)/(p + n) * B(p_k / (p_k + n_k))
+        return r
 
 
 def Importance(A, exs):
     p = exs[GOAL_ATTRIBUTE].value_counts()[1]
     n = exs[GOAL_ATTRIBUTE].value_counts()[0]
-    return B(p/(p+n)) - Remainder(A, p, n, exs)
+
+    if A in continuous:
+        split = score = 0
+
+        candidates = exs[A].unique()
+        candidates.sort()
+        for c in candidates:
+            # print(c)
+            x = B(p/(p+n)) - Remainder(A, p, n, exs, c)
+            # print(p)
+            if x >= score:
+                split = c
+                score = x
+        return score, split
+
+    return B(p/(p+n)) - Remainder(A, p, n, exs), None
 
 
 class Node:
     def __init__(self, value):
 
-        self.children = []
         self.value = value
-        self.trails = {}
+        self.children = {}
 
-    def addChild(self, node, state):
+    def addChild(self, node, state, split=None):
        # node.parent = self
         node.state = state  # the state that lead to this node
-        self.children.append(node)
-        self.trails[state] = node  # used for easier traversal
+        self.children[state] = node  # The children of this node
+        self.split = split  # used for
 
     def __str__(self):
         return f"Value: {self.value}, Children: {self.children}"
-
-
-def viztest():
-    dot = Digraph(comment='The Round Table')
-    dot.node('A', 'King Arthur')
-    dot.node('B', 'Sir Bedevere the Wise')
-    dot.node('L', "0")
-    dot.edges(['AB', 'AL'])
-    dot.edge('B', 'L', constraint='false', label="Hello")
-    dot.render('test-output/round-table.gv', view=True)
 
 
 def viz(root):
@@ -71,7 +99,7 @@ def viz(root):
 
         if parent:
             dot.edge(parent, id, label=str(Node.state))
-        for child in Node.children:
+        for child in Node.children.values():
             # add children to the queue, using the unique node ID as parent id
             q.append((id, child))
         counter = counter + 1
@@ -89,7 +117,6 @@ def DTL(examples, attributes, parent_examples=None):
 
     if len(examples[GOAL_ATTRIBUTE].unique()) == 1:
         val = examples[GOAL_ATTRIBUTE].unique()[0]
-        # print(val)
         return Node(val)
 
     if not attributes:
@@ -97,17 +124,25 @@ def DTL(examples, attributes, parent_examples=None):
 
     A = ""
     val = 0
+    split = None
     for a in attributes:
-        x = Importance(a, examples)
+        x, s = Importance(a, examples)
         if x >= val:
             A = a
             val = x
+            split = s
+
     attributes.remove(A)
 
     root = Node(A)
 
     if A in continuous:
-        return
+        left = examples[examples[A] <= split]
+        leftTree = DTL(left, attributes.copy(), examples)
+        root.addChild(leftTree, f"<= {split}", split)
+        right = examples[examples[A] > split]
+        rightTree = DTL(right, attributes.copy(), examples)
+        root.addChild(rightTree, f"> {split}", split)
 
     else:
         for v in data[A].unique():
@@ -133,8 +168,15 @@ def Test(tree, data):
                 flag = False
 
             else:
-                state = row[n.value]
-                n = n.trails[state]
+                if n.value in continuous:
+                    s = n.split
+                    if row[n.value] > s:
+                        n = n.children[f"> {s}"]
+                    else:
+                        n = n.children[f"<= {s}"]
+                else:
+                    state = row[n.value]
+                    n = n.children[state]
     return points / total
 
 
@@ -151,7 +193,7 @@ def MissingValues(data):
 
 GOAL_ATTRIBUTE = "Survived"
 
-continuous = ["Sibsp", "Parch", "Fare"]
+continuous = ["SibSp", "Parch", "Fare"]
 
 columns = []
 columns.append("Survived")
@@ -159,12 +201,12 @@ columns.append("Pclass")  # Relevant?
 # columns.append("Name")  # Not relevant
 columns.append("Sex")  # Relevant
 # columns.append("Age")  # Continuous - Relevant - missing
-# columns.append("SibSp")  # Continuous - Relevant?
-# columns.append("Parch")  # Continuous - Relevant?
+columns.append("SibSp")  # Continuous - Relevant?
+columns.append("Parch")  # Continuous - Relevant?
 # columns.append("Ticket") # Continuous - Not Relevant
-# columns.append("Fare")  # Continuous - Relevant?
+columns.append("Fare")  # Continuous - Relevant?
 # columns.append("Cabin") # Continuous - missing
-# columns.append("Embarked") # Not relevant
+# columns.append("Embarked")  # Not relevant
 
 
 data = pd.read_csv("./train.csv")  # , usecols=columns)
@@ -175,12 +217,8 @@ attr.remove(GOAL_ATTRIBUTE)
 tree = DTL(data, attr)
 
 print(f"Accuracy is {Test(tree, testData)*100} %")
-# viz(tree)
+viz(tree)
 
-#attributes = data.columns.values
-
-# print(data.SibSp.unique())
-# print(testData.SibSp.unique())
 
 # print(
 #    f"The following columns are missing values in the training set: \n{MissingValues(data)}")
