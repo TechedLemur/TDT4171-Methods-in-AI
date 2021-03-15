@@ -96,20 +96,24 @@ def DTL(examples, attributes, parent_examples=None):
         return PluralityValueNode(examples)
 
     A = ""
-    v = 0
+    val = 0
     for a in attributes:
         x = Importance(a, examples)
-        if x >= v:
+        if x >= val:
             A = a
-            v = x
+            val = x
     attributes.remove(A)
 
     root = Node(A)
 
-    for v in data[A].unique():
-        exs = examples[examples[A] == v]
-        subtree = DTL(exs, attributes.copy(), examples)
-        root.addChild(subtree, v)
+    if A in continuous:
+        return
+
+    else:
+        for v in data[A].unique():
+            exs = examples[examples[A] == v]
+            subtree = DTL(exs, attributes.copy(), examples)
+            root.addChild(subtree, v)
     return root
 
 
@@ -146,6 +150,8 @@ def MissingValues(data):
 
 
 GOAL_ATTRIBUTE = "Survived"
+
+continuous = ["Sibsp", "Parch", "Fare"]
 
 columns = []
 columns.append("Survived")
