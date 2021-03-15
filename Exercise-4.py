@@ -4,8 +4,8 @@ import math
 import random
 from graphviz import Digraph
 import os
+# Because windows...
 os.environ["PATH"] += os.pathsep + 'C:/Program Files/Graphviz/bin'
-# class DecitionTree(self):
 
 
 def B(q):
@@ -37,30 +37,16 @@ class Node:
 
         self.children = []
         self.value = value
+        self.trails = {}
 
     def addChild(self, node, state):
-        node.parent = self
-        node.state = state
+       # node.parent = self
+        node.state = state  # the state that lead to this node
         self.children.append(node)
+        self.trails[state] = node  # used for easier traversal
 
     def __str__(self):
         return f"Value: {self.value}, Children: {self.children}"
-
-
-def treeTest():
-    n1 = Node("Patrons")
-    n2 = Node(0)
-    n3 = Node(1)
-    n4 = Node("Hungry")
-    n5 = Node(0)
-    n6 = Node("Type")
-    n1.addChild(n2, "none")
-    n1.addChild(n3, "some")
-    n1.addChild(n4, "Full")
-    n4.addChild(n5, "No")
-    n4.addChild(n6, "Yes")
-
-    viz(n1)
 
 
 def viztest():
@@ -92,32 +78,6 @@ def viz(root):
     dot.render("graph.gv", view=True)
 
 
-# treeTest()
-
-
-# data = pd.read_csv("./train.csv", usecols=columns)
-
-
-# p = data["Survived"].value_counts()[1]
-# p = data["WillWait"].value_counts()[1]
-# n = data["Survived"].value_counts()[0]
-# n = data["WillWait"].value_counts()[0]
-
-# g = B(p/(p+n))
-
-# count = data.groupby("WillWait")[
-#    "Patrons"].value_counts().unstack(fill_value=0).stack()
-# a = "Patrons"
-#vals = data.Patrons.unique()
-
-
-def test(b):
-    print(data.groupby("WillWait")
-          [b].value_counts().unstack(fill_value=0).stack())
-
-
-#print(Importance("Patrons", data))
-
 def PluralityValueNode(exs):
     mode = exs[GOAL_ATTRIBUTE].mode()
     return Node(random.choice(mode))
@@ -139,11 +99,9 @@ def DTL(examples, attributes, parent_examples=None):
     v = 0
     for a in attributes:
         x = Importance(a, examples)
-#        print(a, x)
-        if x > v:
+        if x >= v:
             A = a
             v = x
- #   print(attributes, A)
     attributes.remove(A)
 
     root = Node(A)
@@ -156,32 +114,67 @@ def DTL(examples, attributes, parent_examples=None):
 
 
 def Test(tree, data):
-    for t in data:
-        return
+    points = 0.0
+    total = 0.0
+    for index, row in data.iterrows():
+        total += 1
+        n = tree
+        correct = row[GOAL_ATTRIBUTE]
+        flag = True
+        while(flag):
+
+            if n.value in [0, 1]:
+                if n.value == correct:
+                    points += 1
+                flag = False
+
+            else:
+                state = row[n.value]
+                n = n.trails[state]
+    return points / total
+
+
+def MissingValues(data):
+    columns = data.columns.values
+
+    missing = []
+    for c in columns:
+        if (data[c].isnull().values.any()):
+            missing.append(c)
+
+    return missing
 
 
 GOAL_ATTRIBUTE = "Survived"
 
 columns = []
 columns.append("Survived")
-columns.append("Pclass")
-# columns.append("Name")
+columns.append("Pclass")  # Relevant?
+# columns.append("Name")  # Not relevant
 columns.append("Sex")  # Relevant
-# columns.append("Age") # Continuous - Relevant
-# columns.append("SibSp") # Continuous - Relevant?
-# columns.append("Parch") # Contniuous - Relevant?
-# columns.append("Ticket") # Contniuous
-# columns.append("Fare") # Contniuous
-# columns.append("Cabin") # Contniuous
-# columns.append("Embarked")
+# columns.append("Age")  # Continuous - Relevant - missing
+# columns.append("SibSp")  # Continuous - Relevant?
+# columns.append("Parch")  # Continuous - Relevant?
+# columns.append("Ticket") # Continuous - Not Relevant
+# columns.append("Fare")  # Continuous - Relevant?
+# columns.append("Cabin") # Continuous - missing
+# columns.append("Embarked") # Not relevant
 
 
-data = pd.read_csv("./train.csv", usecols=columns)
-testData = pd.read_csv("./test.csv", usecols=columns)
+data = pd.read_csv("./train.csv")  # , usecols=columns)
+testData = pd.read_csv("./test.csv")
 attr = columns
 attr.remove(GOAL_ATTRIBUTE)
 
 tree = DTL(data, attr)
 
+print(f"Accuracy is {Test(tree, testData)*100} %")
+# viz(tree)
 
-viz(tree)
+#attributes = data.columns.values
+
+# print(data.SibSp.unique())
+# print(testData.SibSp.unique())
+
+# print(
+#    f"The following columns are missing values in the training set: \n{MissingValues(data)}")
