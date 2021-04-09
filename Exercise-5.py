@@ -5,7 +5,7 @@ import numpy as np
 import pickle
 import os
 import random
-
+import math
 
 class NeuralNetwork:
     """Implement/make changes to places in the code that contains #TODO."""
@@ -46,14 +46,17 @@ class NeuralNetwork:
         self.input_dim = input_dim
         self.hidden_layer = hidden_layer
 
+        self.layers = []
+
         if(hidden_layer):
             return
         else:
-            self.input_nodes = [Neuron() for i in range(input_dim)]
-
-            self.output_node = Neuron(
-                (self.input_nodes, [random.uniform(0, 0.1) for i in range(input_dim)]))
-
+            input_nodes = [Neuron() for i in range(input_dim)]
+            output_node = [Neuron(
+                (self.input_nodes, [random.uniform(0, 0.1) for i in range(input_dim)]))]
+                
+            self.layers.append(self.input_nodes)
+            self.layers.append(self.output_node)
     def load_data(self, file_path: str = os.path.join(os.getcwd(), 'data_breast_cancer.p')) -> None:
         """
         Do not change anything in this method.
@@ -72,6 +75,12 @@ class NeuralNetwork:
             self.x_train, self.y_train = data['x_train'], data['y_train']
             self.x_test, self.y_test = data['x_test'], data['y_test']
 
+    def g(t) -> float:
+        return 1 / (1+ math.exp(-t))
+
+    def g_prime(t) -> float:
+        return g(t)*(1-g(t))
+
     def train(self) -> None:
         """Run the backpropagation algorithm to train this neural network"""
         # TODO: Implement the back-propagation algorithm outlined in Figure 18.24 (page 734) in AIMA 3rd edition.
@@ -83,8 +92,31 @@ class NeuralNetwork:
         for i in range(self.epochs):
 
             for x, y in zip(self.x_train, self.y_train):
+                for node, value in zip(self.layers[0], x):
+                    node.value=  value
 
-            return
+                for j in range(1, len(self.layers)):
+                    layer = self.layers[j]
+                    for n in layer:
+                        in_weights = np.array(n.weights)
+                        in_values = np.array(map(lambda x: x.value, n.inputs))
+                        n.in_j = in_weights.dot(in_values)
+                        n.value = g(n.in_j)
+                
+                for node in self.layers[-1]:
+                    
+                    node.delta = g_prime(node.in_j) * (y - node.value)
+
+                for l in range(len(self.layers)-2, 0, -1):
+                    for node in self.layers[i]:
+                        # TODO: Find weight to node i +1
+                        node.delta = g_prime(node.in_j) 
+
+                
+
+
+
+
 
         # Line 27 in Figure 18.24 says "return network". Here you do not need to return anything as we are coding
         # the neural network as a class
@@ -160,7 +192,6 @@ class Neuron:
     """
 
     def __init__(self, inputs=[], weights=[]) -> None:
-        # TODO:
         if (len(inputs) != len(weights)):
             raise Exception("Need to have exactly one weight for each input")
         self.inputs = inputs
