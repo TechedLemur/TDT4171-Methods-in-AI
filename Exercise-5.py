@@ -4,6 +4,7 @@ import unittest
 import numpy as np
 import pickle
 import os
+import random
 
 
 class NeuralNetwork:
@@ -42,6 +43,17 @@ class NeuralNetwork:
         # TODO: Make necessary changes here. For example, assigning the arguments "input_dim" and "hidden_layer" to
         # variables and so forth.
 
+        self.input_dim = input_dim
+        self.hidden_layer = hidden_layer
+
+        if(hidden_layer):
+            return
+        else:
+            self.input_nodes = [Neuron() for i in range(input_dim)]
+
+            self.output_node = Neuron(
+                (self.input_nodes, [random.uniform(0, 0.1) for i in range(input_dim)]))
+
     def load_data(self, file_path: str = os.path.join(os.getcwd(), 'data_breast_cancer.p')) -> None:
         """
         Do not change anything in this method.
@@ -67,6 +79,12 @@ class NeuralNetwork:
 
         # Line 6 in Figure 18.24 says "repeat".
         # We are going to repeat self.epochs times as written in the __init()__ method.
+
+        for i in range(self.epochs):
+
+            for x, y in zip(self.x_train, self.y_train):
+
+            return
 
         # Line 27 in Figure 18.24 says "return network". Here you do not need to return anything as we are coding
         # the neural network as a class
@@ -132,6 +150,23 @@ class TestAssignment5(unittest.TestCase):
         self.assertTrue(accuracy > self.threshold,
                         'This implementation is most likely wrong since '
                         f'the accuracy ({accuracy}) is less than {self.threshold}.')
+
+
+class Neuron:
+    # TODO: Decide on class structure
+    """
+    Class for representing a neuron. The "inputs" array keeps track if incoming links,
+    and the "weights" array has the input weights on the corresponding index.
+    """
+
+    def __init__(self, inputs=[], weights=[]) -> None:
+        # TODO:
+        if (len(inputs) != len(weights)):
+            raise Exception("Need to have exactly one weight for each input")
+        self.inputs = inputs
+        self.weights = weights
+
+        #self.inputs = {}
 
 
 if __name__ == '__main__':
