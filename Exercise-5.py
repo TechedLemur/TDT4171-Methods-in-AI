@@ -6,6 +6,7 @@ import pickle
 import os
 import random
 import math
+import time
 
 
 class NeuralNetwork:
@@ -44,20 +45,20 @@ class NeuralNetwork:
         # TODO: Make necessary changes here. For example, assigning the arguments "input_dim" and "hidden_layer" to
         # variables and so forth.
 
+        OUTPUT_SIZE = 1
+
         self.input_dim = input_dim
         self.hidden_layer = hidden_layer
 
-        self.layers = []
+        self.input_layer = Layer(input_dim)
 
-        if(hidden_layer):
-            return
+        self.output_layer = Layer(OUTPUT_SIZE)
+        if (hidden_layer):
+            h_L = Layer(self.hidden_units)
+            self.input_layer.connect(h_L)
+            h_L.connect(self.output_layer)
         else:
-            input_nodes = [Neuron() for i in range(input_dim)]
-            output_node = [Neuron(
-                (self.input_nodes, [random.uniform(0, 0.1) for i in range(input_dim)]))]
-
-            self.layers.append(self.input_nodes)
-            self.layers.append(self.output_node)
+            self.input_layer.connect(self.output_layer)
 
     def load_data(self, file_path: str = os.path.join(os.getcwd(), 'data_breast_cancer.p')) -> None:
         """
@@ -77,11 +78,11 @@ class NeuralNetwork:
             self.x_train, self.y_train = data['x_train'], data['y_train']
             self.x_test, self.y_test = data['x_test'], data['y_test']
 
-    def g(t) -> float:
+    def g(self, t) -> float:
         return 1 / (1 + math.exp(-t))
 
-    def g_prime(t) -> float:
-        return g(t)*(1-g(t))
+    def g_prime(self, t) -> float:
+        return self.g(t)*(1-self.g(t))
 
     def train(self) -> None:
         """Run the backpropagation algorithm to train this neural network"""
@@ -91,32 +92,67 @@ class NeuralNetwork:
         # Line 6 in Figure 18.24 says "repeat".
         # We are going to repeat self.epochs times as written in the __init()__ method.
 
-        for i in range(self.epochs):
-
+        print(len(self.x_train))
+        print(len(self.y_train))
+        print(len(self.x_train[0]))
+        for _ in range(self.epochs):
+            tic = time.perf_counter()
+            print(1)
             for x, y in zip(self.x_train, self.y_train):
-                for node, value in zip(self.layers[0], x):
+                print(2)
+                print(tic - time.perf_counter())
+                for node, value in zip(self.input_layer.nodes, x):
                     node.value = value
+                    node.in_v = value
 
-                for j in range(1, len(self.layers)):
-                    layer = self.layers[j]
-                    for n in layer:
-                        in_weights = np.array(n.weights)
-                        in_values = np.array(map(lambda x: x.value, n.inputs))
-                        n.in_j = in_weights.dot(in_values)
-                        n.value = g(n.in_j)
+                current_layer = self.input_layer.next_layer
+                while (current_layer):
 
-                for node in self.layers[-1]:
+                    for j in current_layer.nodes:
+                        in_j = 0.0
+                        for i in j.incoming_nodes:
+                            in_j += i[0].value * i[1]
+                        j.in_v = in_j
+                        j.value = self.g(in_j)
+                    current_layer = current_layer.next_layer
+                print(3)
+                print(tic - time.perf_counter())
+                for j in self.output_layer.nodes:  # Can support multiple output nodes, but in this case we only have one
+                    j.delta = self.g_prime(j.in_v) * (y - j.value)
 
-                    node.delta = g_prime(node.in_j) * (y - node.value)
+                current_layer = self.output_layer.previous_layer
+                print(4)
+                print(tic - time.perf_counter())
+                while(current_layer):
+                    next_layer = current_layer.next_layer
 
-                for l in range(len(self.layers)-2, 0, -1):
-                    for node in self.layers[i]:
-                        # TODO: Find weight to node i +1
-                        node.delta = g_prime(node.in_j)
+                    for i in range(len(current_layer.nodes)):
+                        d_i = 0.0
+                        node_i = current_layer.nodes[i]
 
+                        for j in next_layer.nodes:
+                            d_i += self.g_prime(node_i.in_v) * \
+                                j.incoming_nodes[i][1] * j.delta
+
+                        node_i.delta = d_i
+
+                    current_layer = current_layer.previous_layer
+                print(5)
+                print(tic - time.perf_counter())
+                current_layer = self.input_layer.next_layer
+                while(current_layer):
+
+                    for node in current_layer.nodes:
+
+                        for in_node in node.incoming_nodes:
+                            n = in_node[0]
+                            w = in_node[1]
+                            in_node[1] = w + self.lr * n.value * node.delta
+                    current_layer = current_layer.next_layer
+                print(6)
+                print(tic - time.perf_counter())
         # Line 27 in Figure 18.24 says "return network". Here you do not need to return anything as we are coding
         # the neural network as a class
-        pass
 
     def predict(self, x: np.ndarray) -> float:
         """
@@ -126,7 +162,18 @@ class NeuralNetwork:
         :return: A float specifying probability which is bounded [0, 1].
         """
         # TODO: Implement the forward pass.
-        return 1  # Placeholder, remove when implementing
+
+        current_layer = self.input_layer.next_layer
+        while (current_layer):
+
+            for j in current_layer.nodes:
+                in_j = 0.0
+                for i in j.incoming_nodes:
+                    in_j += i[0].value * i[1]
+                j.in_v = in_j
+                j.value = self.g(in_j)
+            current_layer = current_layer.next_layer
+        return self.output_layer.nodes[0].value
 
 
 class TestAssignment5(unittest.TestCase):
@@ -190,19 +237,26 @@ class Neuron:
     def __init__(self, incoming_nodes=[]) -> None:
 
         self.incoming_nodes = incoming_nodes
+        self.value = 0.0
+
+    def __repr__(self):
+        return f'Neuron: {self.value}, {self.in_v}'
 
 
 class Layer:
 
-    def __init__(self, size):
+    def __init__(self, size: int):
+        self.next_layer = None
+        self.previous_layer = None
         self.nodes = [Neuron() for _ in range(size)]
 
-    def connect(self, layer: Layer):
+    def connect(self, layer):
         self.next_layer = layer
         layer.previous_layer = self
         for node in self.nodes:
-            for n in Layer.nodes:
-                n.incoming_nodes.append([node, 0])
+            for n in layer.nodes:
+                # Add links and init weights to a small random number
+                n.incoming_nodes.append([node, random.uniform(-0.1, 0.1)])
 
 
 if __name__ == '__main__':
