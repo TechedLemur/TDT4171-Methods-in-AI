@@ -58,12 +58,15 @@ class NeuralNetwork:
             self.B = [rng.random(25), rng.random(1)]
             self.A = [np.zeros(25), np.zeros(25), np.zeros(1)]
             self.In = [np.zeros(25), np.zeros(25), np.zeros(1)]
+            self.No_Layers = 3
         else:
             self.W = rng.random(25)
             self.D = np.zeros(25)
             self.B = rng.random(25)
             self.A = [np.zeros(25), np.zeros(1)]
             self.In = [np.zeros(25), np.zeros(1)]
+            self.No_Layers = 2
+
         
 
     def load_data(self, file_path: str = os.path.join(os.getcwd(), 'data_breast_cancer.p')) -> None:
@@ -100,8 +103,13 @@ class NeuralNetwork:
 
         for _ in range(self.epochs):
             for x, y in zip(self.x_train, self.y_train):
-                pass
         
+                for i, x_i in enumerate(x):
+                    self.In[0][i] = x_i
+                    self.A[0][i] = x_i
+
+                for j in range(1, self.No_Layers):
+                    self.In[j] = self.B[j-1] + self.A[j-1] @ self.W[j-1]
         
         
         # Line 27 in Figure 18.24 says "return network". Here you do not need to return anything as we are coding
