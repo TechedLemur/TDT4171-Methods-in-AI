@@ -50,7 +50,7 @@ class NeuralNetwork:
         self.input_dim = input_dim
         self.hidden_layer = hidden_layer
 
-        rng = np.random.default_rng(12345)
+        rng = np.random.default_rng(123456)
 
         if (hidden_layer):
             self.W = [rng.random((self.input_dim, self.hidden_units), np.float32)-0.5,
@@ -65,9 +65,9 @@ class NeuralNetwork:
                 self.hidden_units, np.float32), np.zeros(1, np.float32)]
             self.No_Layers = 3
         else:
-            self.W = [rng.random(self.input_dim, np.float32)]
+            self.W = [rng.random(self.input_dim, np.float32)-0.5]
             self.D = [np.zeros(1, np.float32)]
-            self.B = [rng.random(self.input_dim, np.float32)]
+            self.B = [rng.random(1, np.float32)-0.5]
             self.A = [np.zeros(self.input_dim, np.float32),
                       np.zeros(1, np.float32)]
             self.In = [np.zeros(self.input_dim, np.float32),
@@ -105,23 +105,25 @@ class NeuralNetwork:
 
         # Line 6 in Figure 18.24 says "repeat".
         # We are going to repeat self.epochs times as written in the __init()__ method.
-
+        o = self.No_Layers - 1  # index of output layer
+        # print("asd")
+        # print(self.A[o])
         for _ in range(self.epochs):
-            print(self.A[-1][0])
+           # print(self.A[-1][0])
+           # print(self.D)
             # print(self.W[0][0])
             for x, y in zip(self.x_train, self.y_train):
 
-                o = self.No_Layers - 1  # index of output layer
                 for i, x_i in enumerate(x):
-                    self.In[0][i] = x_i
+                    #self.In[0][i] = x_i
                     self.A[0][i] = x_i
 
                 for j in range(1, self.No_Layers):
-                    self.In[j] = self.B[j-1] + self.A[j-1] @ self.W[j-1]
+                    self.In[j] = self.B[j-1] + self.A[j-1]@(self.W[j-1])
                     self.A[j] = self.g(self.In[j])
 
                 # Update Delta in output layer
-                self.D[o-1] = self.g_prime(self.In[o] * (y - self.A[o]))
+                self.D[o-1] = self.g_prime(self.In[o]) * (y - self.A[o])
 
                 # Update Deltas in hidden layer
                 for l in range(self.No_Layers-2, 0, -1):
@@ -130,7 +132,7 @@ class NeuralNetwork:
 
                 for l in range(1, self.No_Layers):
                     self.W[l-1] = self.W[l-1] + \
-                        self.lr * self.A[l] * self.D[l-1]
+                        self.lr * self.A[l-1] * self.D[l-1]
 
                     self.B[l-1] = self.B[l-1] + \
                         self.lr * self.D[l-1]
@@ -151,7 +153,7 @@ class NeuralNetwork:
             self.A[0][i] = x_i
 
         for j in range(1, self.No_Layers):
-            self.In[j] = self.B[j-1] + self.A[j-1] @ self.W[j-1]
+            self.In[j] = self.B[j-1] + self.A[j-1]@(self.W[j-1])
             self.A[j] = self.g(self.In[j])
 
         return self.A[-1][0]
