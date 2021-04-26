@@ -4,9 +4,6 @@ import unittest
 import numpy as np
 import pickle
 import os
-import random
-import math
-import time
 
 
 class NeuralNetwork:
@@ -42,23 +39,40 @@ class NeuralNetwork:
         self.x_train, self.y_train = None, None
         self.x_test, self.y_test = None, None
 
-        # TODO: Make necessary changes here. For example, assigning the arguments "input_dim" and "hidden_layer" to
-        # variables and so forth.
-
         OUTPUT_SIZE = 1
 
         self.input_dim = input_dim
-        self.hidden_layer = hidden_layer
 
+        # Random generator for generating initial values
         rng = np.random.default_rng(123456)
+
+        """
+        The next lines sets the variables that will be used to keep track of the state of the network.
+        All representations and calculations are done with numpy matrices and vectors to improve runtime.
+
+        W: List contaning matrices with the weights between layers.
+           The element W[l]_ij represents the weight from node i in layer l to node j in layer l+1
+           Initialized with random values between -0.5 and 0.5
+
+        D: List containing lists of deltas for the output layer and optionally the hidden layer.
+
+        B: List of biases for each layer. Initialized with random values between -0.5 and 0.5
+
+        A: List of output values for nodes in each layer.
+
+        In: List of summed weighted input values for nodes in each layer.
+
+        No_Layers: Total number of layers, including input layer.
+
+        """
 
         if (hidden_layer):
             self.W = [rng.random((self.input_dim, self.hidden_units), np.float32)-0.5,
-                      rng.random((self.hidden_units, 1), np.float32)-0.5]
+                      rng.random((self.hidden_units, OUTPUT_SIZE), np.float32)-0.5]
             self.D = [np.zeros(self.hidden_units, np.float32),
-                      np.zeros(1, np.float32)]
+                      np.zeros(OUTPUT_SIZE, np.float32)]
             self.B = [rng.random(self.hidden_units, np.float32)-0.5,
-                      rng.random(1, np.float32)-0.5]
+                      rng.random(OUTPUT_SIZE, np.float32)-0.5]
             self.A = [np.zeros(self.input_dim, np.float32), np.zeros(
                 self.hidden_units, np.float32), np.zeros(1, np.float32)]
             self.In = [np.zeros(self.input_dim, np.float32), np.zeros(
@@ -66,12 +80,12 @@ class NeuralNetwork:
             self.No_Layers = 3
         else:
             self.W = [rng.random(self.input_dim, np.float32)-0.5]
-            self.D = [np.zeros(1, np.float32)]
-            self.B = [rng.random(1, np.float32)-0.5]
+            self.D = [np.zeros(OUTPUT_SIZE, np.float32)]
+            self.B = [rng.random(OUTPUT_SIZE, np.float32)-0.5]
             self.A = [np.zeros(self.input_dim, np.float32),
-                      np.zeros(1, np.float32)]
+                      np.zeros(OUTPUT_SIZE, np.float32)]
             self.In = [np.zeros(self.input_dim, np.float32),
-                       np.zeros(1, np.float32)]
+                       np.zeros(OUTPUT_SIZE, np.float32)]
             self.No_Layers = 2
 
     def load_data(self, file_path: str = os.path.join(os.getcwd(), 'data_breast_cancer.p')) -> None:
@@ -92,35 +106,26 @@ class NeuralNetwork:
             self.x_train, self.y_train = data['x_train'], data['y_train']
             self.x_test, self.y_test = data['x_test'], data['y_test']
 
-    def g(self, t):
+    def g(self, t):  # Sigmoid activation function
         return 1 / (1 + np.exp(-t))
 
-    def g_prime(self, t):
+    def g_prime(self, t):  # Derivative of sigmoid function
         return self.g(t)*(1-self.g(t))
 
     def train(self) -> None:
         """Run the backpropagation algorithm to train this neural network"""
-        # TODO: Implement the back-propagation algorithm outlined in Figure 18.24 (page 734) in AIMA 3rd edition.
+        # Implement the back-propagation algorithm outlined in Figure 18.24 (page 734) in AIMA 3rd edition.
         # Only parts of the algorithm need to be implemented since we are only going for one hidden layer.
 
         # Line 6 in Figure 18.24 says "repeat".
         # We are going to repeat self.epochs times as written in the __init()__ method.
         o = self.No_Layers - 1  # index of output layer
-        # print("asd")
-        # print(self.A[o])
+
         for _ in range(self.epochs):
-           # print(self.A[-1][0])
-           # print(self.D)
-            # print(self.W[0][0])
             for x, y in zip(self.x_train, self.y_train):
 
-                for i, x_i in enumerate(x):
-                    #self.In[0][i] = x_i
-                    self.A[0][i] = x_i
-
-                for j in range(1, self.No_Layers):
-                    self.In[j] = self.B[j-1] + self.A[j-1]@(self.W[j-1])
-                    self.A[j] = self.g(self.In[j])
+                # Execute forward pass
+                self.forward_pass(x)
 
                 # Update Delta in output layer
                 self.D[o-1] = self.g_prime(self.In[o]) * (y - self.A[o])
@@ -128,13 +133,15 @@ class NeuralNetwork:
                 # Update Deltas in hidden layer
                 for l in range(self.No_Layers-2, 0, -1):
                     self.D[l-1] = self.g_prime(self.In[l]) * \
-                        (self.W[l]@self.D[l])
+                        (self.W[l] @ self.D[l])
 
                 for l in range(1, self.No_Layers):
+                    # Update weights using learning rate, output values and deltas
                     self.W[l-1] = self.W[l-1] + \
                         self.lr * self.A[l-1][:, np.newaxis] * self.D[l - 1]
-                    # Could also use self.lr * np.einsum('i,j->ij',self.A[l-1],  self.D[l-1]), but it seems to run slower
+                    # Could also use self.lr * np.einsum('i,j->ij',self.A[l-1],  self.D[l-1]), but it seems to run a bit slower.
 
+                    # Update biases using learning rate and deltas
                     self.B[l-1] = self.B[l-1] + \
                         self.lr * self.D[l-1]
 
@@ -148,16 +155,23 @@ class NeuralNetwork:
         :param x: A single example (vector) with shape = (number of features)
         :return: A float specifying probability which is bounded [0, 1].
         """
-        # TODO: Implement the forward pass.
+        # Run forward pass
+        self.forward_pass(x)
+
+        # Return the output value of the output node
+        return self.A[-1][0]
+
+    def forward_pass(self, x: np.ndarray):
+
         for i, x_i in enumerate(x):
-            self.In[0][i] = x_i
+            # Set output values in the input layer
             self.A[0][i] = x_i
 
         for j in range(1, self.No_Layers):
-            self.In[j] = self.B[j-1] + self.A[j-1]@(self.W[j-1])
+            # Calculate weighed sums and add bias
+            self.In[j] = self.B[j-1] + self.A[j-1] @ (self.W[j-1])
+            # Use activation function to set output values
             self.A[j] = self.g(self.In[j])
-
-        return self.A[-1][0]
 
 
 class TestAssignment5(unittest.TestCase):
