@@ -132,7 +132,8 @@ class NeuralNetwork:
 
                 for l in range(1, self.No_Layers):
                     self.W[l-1] = self.W[l-1] + \
-                        self.lr * self.A[l-1] * self.D[l-1]
+                        self.lr * self.A[l-1][:, np.newaxis] * self.D[l - 1]
+                    # Could also use self.lr * np.einsum('i,j->ij',self.A[l-1],  self.D[l-1]), but it seems to run slower
 
                     self.B[l-1] = self.B[l-1] + \
                         self.lr * self.D[l-1]
@@ -201,7 +202,7 @@ class TestAssignment5(unittest.TestCase):
                         f'the accuracy ({accuracy}) is less than {self.threshold}.')
 
     def test_one_hidden(self) -> None:
-        """Run this method to see if Part 2 is implemented correctly."""
+        """Run this method to see if Part 2 is implemented correctly"""
 
         self.network = self.nn_class(self.n_features, True)
         accuracy = self.get_accuracy()
