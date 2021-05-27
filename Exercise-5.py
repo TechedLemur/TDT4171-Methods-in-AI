@@ -4,9 +4,6 @@ import unittest
 import numpy as np
 import pickle
 import os
-import random
-import math
-import time
 
 
 class NeuralNetwork:
@@ -42,23 +39,54 @@ class NeuralNetwork:
         self.x_train, self.y_train = None, None
         self.x_test, self.y_test = None, None
 
-        # TODO: Make necessary changes here. For example, assigning the arguments "input_dim" and "hidden_layer" to
-        # variables and so forth.
-
         OUTPUT_SIZE = 1
 
         self.input_dim = input_dim
-        self.hidden_layer = hidden_layer
 
-        self.input_layer = Layer(input_dim)
+        # Random generator for generating initial values
+        rng = np.random.default_rng(123456)
 
-        self.output_layer = Layer(OUTPUT_SIZE)
+        """
+        The next lines sets the variables that will be used to keep track of the state of the network.
+        All representations and calculations are done with numpy matrices and vectors to improve runtime.
+
+        W: List contaning matrices with the weights between layers.
+           The element W[l]_ij represents the weight from node i in layer l to node j in layer l+1
+           Initialized with random values between -0.5 and 0.5
+
+        D: List containing lists of deltas for the output layer and optionally the hidden layer.
+
+        B: List of biases for each layer. Initialized with random values between -0.5 and 0.5
+
+        A: List of output values for nodes in each layer.
+
+        In: List of summed weighted input values for nodes in each layer.
+
+        No_Layers: Total number of layers, including input layer.
+
+        """
+
         if (hidden_layer):
-            h_L = Layer(self.hidden_units)
-            self.input_layer.connect(h_L)
-            h_L.connect(self.output_layer)
+            self.W = [rng.random((self.input_dim, self.hidden_units), np.float32)-0.5,
+                      rng.random((self.hidden_units, OUTPUT_SIZE), np.float32)-0.5]
+            self.D = [np.zeros(self.hidden_units, np.float32),
+                      np.zeros(OUTPUT_SIZE, np.float32)]
+            self.B = [rng.random(self.hidden_units, np.float32)-0.5,
+                      rng.random(OUTPUT_SIZE, np.float32)-0.5]
+            self.A = [np.zeros(self.input_dim, np.float32), np.zeros(
+                self.hidden_units, np.float32), np.zeros(1, np.float32)]
+            self.In = [np.zeros(self.input_dim, np.float32), np.zeros(
+                self.hidden_units, np.float32), np.zeros(1, np.float32)]
+            self.No_Layers = 3
         else:
-            self.input_layer.connect(self.output_layer)
+            self.W = [rng.random(self.input_dim, np.float32)-0.5]
+            self.D = [np.zeros(OUTPUT_SIZE, np.float32)]
+            self.B = [rng.random(OUTPUT_SIZE, np.float32)-0.5]
+            self.A = [np.zeros(self.input_dim, np.float32),
+                      np.zeros(OUTPUT_SIZE, np.float32)]
+            self.In = [np.zeros(self.input_dim, np.float32),
+                       np.zeros(OUTPUT_SIZE, np.float32)]
+            self.No_Layers = 2
 
     def load_data(self, file_path: str = os.path.join(os.getcwd(), 'data_breast_cancer.p')) -> None:
         """
@@ -78,79 +106,45 @@ class NeuralNetwork:
             self.x_train, self.y_train = data['x_train'], data['y_train']
             self.x_test, self.y_test = data['x_test'], data['y_test']
 
-    def g(self, t) -> float:
-        return 1 / (1 + math.exp(-t))
+    def g(self, t):  # Sigmoid activation function
+        return 1 / (1 + np.exp(-t))
 
-    def g_prime(self, t) -> float:
+    def g_prime(self, t):  # Derivative of sigmoid function
         return self.g(t)*(1-self.g(t))
 
     def train(self) -> None:
         """Run the backpropagation algorithm to train this neural network"""
-        # TODO: Implement the back-propagation algorithm outlined in Figure 18.24 (page 734) in AIMA 3rd edition.
+        # Implement the back-propagation algorithm outlined in Figure 18.24 (page 734) in AIMA 3rd edition.
         # Only parts of the algorithm need to be implemented since we are only going for one hidden layer.
 
         # Line 6 in Figure 18.24 says "repeat".
         # We are going to repeat self.epochs times as written in the __init()__ method.
+        o = self.No_Layers - 1  # index of output layer
 
-        print(len(self.x_train))
-        print(len(self.y_train))
-        print(len(self.x_train[0]))
         for _ in range(self.epochs):
-            tic = time.perf_counter()
-            print(1)
             for x, y in zip(self.x_train, self.y_train):
-                print(2)
-                print(tic - time.perf_counter())
-                for node, value in zip(self.input_layer.nodes, x):
-                    node.value = value
-                    node.in_v = value
 
-                current_layer = self.input_layer.next_layer
-                while (current_layer):
+                # Execute forward pass
+                self.forward_pass(x)
 
-                    for j in current_layer.nodes:
-                        in_j = 0.0
-                        for i in j.incoming_nodes:
-                            in_j += i[0].value * i[1]
-                        j.in_v = in_j
-                        j.value = self.g(in_j)
-                    current_layer = current_layer.next_layer
-                print(3)
-                print(tic - time.perf_counter())
-                for j in self.output_layer.nodes:  # Can support multiple output nodes, but in this case we only have one
-                    j.delta = self.g_prime(j.in_v) * (y - j.value)
+                # Update Delta in output layer
+                self.D[o-1] = self.g_prime(self.In[o]) * (y - self.A[o])
 
-                current_layer = self.output_layer.previous_layer
-                print(4)
-                print(tic - time.perf_counter())
-                while(current_layer):
-                    next_layer = current_layer.next_layer
+                # Update Deltas in hidden layer
+                for l in range(self.No_Layers-2, 0, -1):
+                    self.D[l-1] = self.g_prime(self.In[l]) * \
+                        (self.W[l] @ self.D[l])
 
-                    for i in range(len(current_layer.nodes)):
-                        d_i = 0.0
-                        node_i = current_layer.nodes[i]
+                for l in range(1, self.No_Layers):
+                    # Update weights using learning rate, output values and deltas
+                    self.W[l-1] = self.W[l-1] + \
+                        self.lr * self.A[l-1][:, np.newaxis] * self.D[l - 1]
+                    # Could also use self.lr * np.einsum('i,j->ij',self.A[l-1],  self.D[l-1]), but it seems to run a bit slower.
 
-                        for j in next_layer.nodes:
-                            d_i += self.g_prime(node_i.in_v) * \
-                                j.incoming_nodes[i][1] * j.delta
+                    # Update biases using learning rate and deltas
+                    self.B[l-1] = self.B[l-1] + \
+                        self.lr * self.D[l-1]
 
-                        node_i.delta = d_i
-
-                    current_layer = current_layer.previous_layer
-                print(5)
-                print(tic - time.perf_counter())
-                current_layer = self.input_layer.next_layer
-                while(current_layer):
-
-                    for node in current_layer.nodes:
-
-                        for in_node in node.incoming_nodes:
-                            n = in_node[0]
-                            w = in_node[1]
-                            in_node[1] = w + self.lr * n.value * node.delta
-                    current_layer = current_layer.next_layer
-                print(6)
-                print(tic - time.perf_counter())
         # Line 27 in Figure 18.24 says "return network". Here you do not need to return anything as we are coding
         # the neural network as a class
 
@@ -161,19 +155,23 @@ class NeuralNetwork:
         :param x: A single example (vector) with shape = (number of features)
         :return: A float specifying probability which is bounded [0, 1].
         """
-        # TODO: Implement the forward pass.
+        # Run forward pass
+        self.forward_pass(x)
 
-        current_layer = self.input_layer.next_layer
-        while (current_layer):
+        # Return the output value of the output node
+        return self.A[-1][0]
 
-            for j in current_layer.nodes:
-                in_j = 0.0
-                for i in j.incoming_nodes:
-                    in_j += i[0].value * i[1]
-                j.in_v = in_j
-                j.value = self.g(in_j)
-            current_layer = current_layer.next_layer
-        return self.output_layer.nodes[0].value
+    def forward_pass(self, x: np.ndarray):
+
+        for i, x_i in enumerate(x):
+            # Set output values in the input layer
+            self.A[0][i] = x_i
+
+        for j in range(1, self.No_Layers):
+            # Calculate weighed sums and add bias
+            self.In[j] = self.B[j-1] + self.A[j-1] @ (self.W[j-1])
+            # Use activation function to set output values
+            self.A[j] = self.g(self.In[j])
 
 
 class TestAssignment5(unittest.TestCase):
@@ -218,45 +216,13 @@ class TestAssignment5(unittest.TestCase):
                         f'the accuracy ({accuracy}) is less than {self.threshold}.')
 
     def test_one_hidden(self) -> None:
-        """Run this method to see if Part 2 is implemented correctly."""
+        """Run this method to see if Part 2 is implemented correctly"""
 
         self.network = self.nn_class(self.n_features, True)
         accuracy = self.get_accuracy()
         self.assertTrue(accuracy > self.threshold,
                         'This implementation is most likely wrong since '
                         f'the accuracy ({accuracy}) is less than {self.threshold}.')
-
-
-class Neuron:
-    # TODO: Decide on class structure
-    """
-    Class for representing a neuron. The "inputs" array keeps track if incoming links,
-    and the "weights" array has the input weights on the corresponding index.
-    """
-
-    def __init__(self, incoming_nodes=[]) -> None:
-
-        self.incoming_nodes = incoming_nodes
-        self.value = 0.0
-
-    def __repr__(self):
-        return f'Neuron: {self.value}, {self.in_v}'
-
-
-class Layer:
-
-    def __init__(self, size: int):
-        self.next_layer = None
-        self.previous_layer = None
-        self.nodes = [Neuron() for _ in range(size)]
-
-    def connect(self, layer):
-        self.next_layer = layer
-        layer.previous_layer = self
-        for node in self.nodes:
-            for n in layer.nodes:
-                # Add links and init weights to a small random number
-                n.incoming_nodes.append([node, random.uniform(-0.1, 0.1)])
 
 
 if __name__ == '__main__':
